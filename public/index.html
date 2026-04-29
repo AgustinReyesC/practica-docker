@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Agenda Telefónica</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #f0f2f5;
+      padding: 30px;
+    }
+
+    h1 {
+      text-align: center;
+      color: #333;
+      margin-bottom: 30px;
+    }
+
+    .contenedor {
+      max-width: 700px;
+      margin: 0 auto;
+    }
+
+    /* Formulario */
+    form {
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    form input {
+      flex: 1;
+      min-width: 150px;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+
+    form button {
+      padding: 10px 20px;
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    form button:hover { background: #45a049; }
+
+    /* Búsqueda */
+    #busqueda {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 14px;
+      margin-bottom: 15px;
+    }
+
+    /* Tabla */
+    table {
+      width: 100%;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      border-collapse: collapse;
+      overflow: hidden;
+    }
+
+    th {
+      background: #4CAF50;
+      color: white;
+      padding: 12px 15px;
+      text-align: left;
+    }
+
+    td {
+      padding: 12px 15px;
+      border-bottom: 1px solid #eee;
+    }
+
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: #f9f9f9; }
+
+    .btn-borrar {
+      background: #e74c3c;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+    }
+
+    .btn-borrar:hover { background: #c0392b; }
+
+    .sin-contactos {
+      text-align: center;
+      color: #999;
+      padding: 30px;
+      background: white;
+      border-radius: 8px;
+    }
+
+    .error { color: red; font-size: 13px; margin-top: 5px; }
+  </style>
+</head>
+<body>
+
+<div class="contenedor">
+  <h1>📒 Agenda Telefónica</h1>
+
+  <!-- Formulario para agregar -->
+  <form id="formulario">
+    <input type="text" id="nombre"   placeholder="Nombre *"    required>
+    <input type="text" id="telefono" placeholder="Teléfono *"  required>
+    <input type="text" id="email"    placeholder="Email (opcional)">
+    <button type="submit">Agregar</button>
+  </form>
+
+  <!-- Búsqueda -->
+  <input type="text" id="busqueda" placeholder="🔍  Buscar contacto...">
+
+  <!-- Lista de contactos -->
+  <div id="lista"></div>
+</div>
+
+<script>
+  let contactos = [];
+
+  async function cargarContactos() {
+    const res = await fetch("/api/contactos");
+    contactos = await res.json();
+    renderizar(contactos);
+  }
+
+  function renderizar(lista) {
+    const div = document.getElementById("lista");
+
+    if (lista.length === 0) {
+      div.innerHTML = '<div class="sin-contactos">No hay contactos todavía.</div>';
+      return;
+    }
+
+    const filas = lista.map(c => `
+      <tr>
+        <td>${c.nombre}</td>
+        <td>${c.telefono}</td>
+        <td>${c.email || "—"}</td>
+        <td><button class="btn-borrar" onclick="borrar(${c.id})">Borrar</button></td>
+      </tr>
+    `).join("");
+
+    div.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Teléfono</th>
+            <th>Email</th>
+            <th>Acción</th>
+          </tr>
+        </thead>
+        <tbody>${filas}</tbody>
+      </table>
+    `;
+  }
+
+  document.getElementById("formulario").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const nombre   = document.getElementById("nombre").value.trim();
+    const telefono = document.getElementById("telefono").value.trim();
+    const email    = document.getElementById("email").value.trim();
+
+    const res = await fetch("/api/contactos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ nombre, telefono, email })
+    });
+
+    if (res.ok) {
+      e.target.reset();
+      cargarContactos();
+    }
+  });
+
+  async function borrar(id) {
+    if (!confirm("¿Eliminar este contacto?")) return;
+    await fetch(`/api/contactos/${id}`, { method: "DELETE" });
+    cargarContactos();
+  }
+
+  document.getElementById("busqueda").addEventListener("input", (e) => {
+    const texto = e.target.value.toLowerCase();
+    const filtrados = contactos.filter(c =>
+      c.nombre.toLowerCase().includes(texto) ||
+      c.telefono.includes(texto) ||
+      (c.email && c.email.toLowerCase().includes(texto))
+    );
+    renderizar(filtrados);
+  });
+
+  cargarContactos();
+</script>
+
+</body>
+</html>
